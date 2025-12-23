@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>VNC Test</title>
+    <style>
+        body {
+            margin: 20px;
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        #status { margin-bottom: 20px; padding: 10px; background: #2d2d30; }
+        #screen { 
+            width: 100%;
+            height: 600px;
+            border: 2px solid #3e3e42;
+            background: #000;
+        }
+        .error { color: #f48771; }
+        .success { color: #4ec9b0; }
+    </style>
+</head>
+<body>
+    <h1>VNC Connection Test</h1>
+    <div id="status">Initializing...</div>
+    <div id="screen"></div>
+    
+    <script type="module">
+        import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
+        
+        const statusEl = document.getElementById('status');
+        const screenEl = document.getElementById('screen');
+        
+        function updateStatus(message, isError = false) {
+            statusEl.innerHTML = `<span class="${isError ? 'error' : 'success'}">${message}</span>`;
+            console.log(message);
+        }
+        
+        async function testConnection() {
+            const url = 'ws://127.0.0.1:6080';
+            updateStatus('Testing WebSocket connection to ' + url + '...');
+            
+            try {
+                // First test raw WebSocket
+                const ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    updateStatus('✅ WebSocket connected! Initializing noVNC...');
+                    ws.close();
+                    
+                    // Now try noVNC
+                    setTimeout(() => {
+                        try {
+                            const rfb = new RFB(screenEl, url);
+                            
+                            rfb.scaleViewport = true;
+                            rfb.resizeSession = false;
+                            
+                            rfb.addEventListener('connect', () => {
+                                updateStatus('✅ VNC Connected successfully!');
+                            });
+                            
+                            rfb.addEventListener('disconnect', (e) => {
+                                updateStatus('❌ VNC Disconnected: ' + (e.detail.reason || 'Unknown reason'), true);
+                            });
+                            
+                            rfb.addEventListener('securityfailure', (e) => {
+                                updateStatus('❌ Authentication failed: ' + JSON.stringify(e.detail), true);
+                            });
+                            
+                            rfb.addEventListener('credentialsrequired', () => {
+                                updateStatus('🔑 VNC server requires password', true);
+                            });
+                            
+                        } catch (error) {
+                            updateStatus('❌ noVNC initialization failed: ' + error.message, true);
+                        }
+                    }, 500);
+                };
+                
+                ws.onerror = (error) => {
+                    updateStatus('❌ WebSocket connection failed. Is websockify running?', true);
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket test completed');
+                };
+                
+            } catch (error) {
+                updateStatus('❌ Connection test failed: ' + error.message, true);
+            }
+        }
+        
+        // Start test after a brief delay
+        setTimeout(testConnection, 500);
+    </script>
+</body>
+</html>

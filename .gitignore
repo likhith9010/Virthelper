@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-electron
+release
+*.log
+.DS_Store
+*.local
+
+# Environment variables
+.env
+.env.local
+.env.*.local
